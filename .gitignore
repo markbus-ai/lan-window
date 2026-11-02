@@ -1,0 +1,5 @@
+build/
+build-*/
+*.user
+CMakeLists.txt.user*
+dist/

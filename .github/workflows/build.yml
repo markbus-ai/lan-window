@@ -1,0 +1,71 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  QT_FORCE_STDERR_LOGGING: 1
+
+jobs:
+  windows-receiver:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+      - name: Build and test
+        shell: msys2 {0}
+        run: scripts/build-windows-msys2.sh --install-deps build
+      - name: Package
+        shell: msys2 {0}
+        run: scripts/package-windows-msys2.sh build dist/lan-window-receiver
+      # Sin MSYS2 en el PATH: comprueba que el paquete se baste a sí mismo.
+      - name: Check package outside MSYS2
+        shell: pwsh
+        timeout-minutes: 3
+        run: |
+          $env:PATH = 'C:\Windows\System32;C:\Windows'
+          $check = Start-Process -FilePath 'dist\lan-window-receiver\lan-window-receiver.exe' `
+            -ArgumentList '--self-check' -Wait -PassThru -NoNewWindow
+          if ($check.ExitCode -ne 0) { throw "self-check failed with exit code $($check.ExitCode)" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lan-window-receiver-windows-x64
+          path: dist/lan-window-receiver
+          if-no-files-found: error
+
+  linux-sender:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake pkg-config patchelf file xvfb \
+            libfuse2t64 libxcb-cursor0 qt6-base-dev qt6-wayland qt6-wayland-dev libportal-dev \
+            libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+            gstreamer1.0-libav gstreamer1.0-pipewire
+      - name: Build and test
+        run: scripts/build-linux.sh build
+      - name: Package
+        run: scripts/package-linux-appimage.sh build dist
+      - name: Check package
+        timeout-minutes: 3
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
+        run: xvfb-run -a dist/lan-window-sender-x86_64.AppImage --self-check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lan-window-sender-linux-x86_64
+          path: dist/lan-window-sender-x86_64.AppImage
+          if-no-files-found: error

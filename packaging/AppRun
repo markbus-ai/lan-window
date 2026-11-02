@@ -1,0 +1,17 @@
+#!/bin/sh
+# Punto de entrada del AppImage: usa solo los plugins GStreamer del paquete.
+HERE="$(dirname "$(readlink -f "$0")")"
+export APPDIR="${APPDIR:-$HERE}"
+
+for hook in "$HERE"/apprun-hooks/*.sh; do
+  [ -e "$hook" ] && . "$hook"
+done
+
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lan-window"
+mkdir -p "$CACHE"
+export GST_REGISTRY_1_0="$CACHE/gst-registry.bin"
+export GST_PLUGIN_SYSTEM_PATH_1_0="$HERE/usr/lib/gstreamer-1.0"
+export GST_PLUGIN_SCANNER_1_0="$HERE/usr/bin/gst-plugin-scanner"
+unset GST_PLUGIN_PATH GST_PLUGIN_PATH_1_0 GST_PLUGIN_SYSTEM_PATH
+
+exec "$HERE/usr/bin/lan-window-sender" "$@"

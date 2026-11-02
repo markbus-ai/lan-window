@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LAN Window Emisor
+Comment=Envía la pantalla a otro PC de la red local
+Exec=lan-window-sender
+Icon=lan-window-sender
+Categories=AudioVideo;Video;Network;
+Terminal=false
