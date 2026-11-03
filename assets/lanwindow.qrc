@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="/lanwindow">
+    <file>check.png</file>
+    <file>down-arrow.png</file>
+    <file>fonts/Barlow-Medium.ttf</file>
+    <file>fonts/Barlow-Bold.ttf</file>
+  </qresource>
+</RCC>

@@ -1,4 +1,5 @@
 #include "common/gst_util.h"
+#include "common/theme.h"
 #include "receiver/receiver_window.h"
 
 #include <QApplication>
@@ -9,6 +10,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("lan-window-receiver"));
     lanwindow::ensureGstInit();
+    lanwindow::applyTheme(app);
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Receptor de vídeo H.264/RTP para compartir en Discord."));

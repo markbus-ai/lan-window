@@ -17,10 +17,11 @@ void VideoWidget::setFrame(const QImage &frame)
     update();
 }
 
-void VideoWidget::setPlaceholder(const QString &text)
+void VideoWidget::setPlaceholder(const QString &text, const QString &detail)
 {
     m_frame = QImage();
     m_placeholder = text;
+    m_placeholderDetail = detail;
     update();
 }
 
@@ -29,11 +30,23 @@ void VideoWidget::paintEvent(QPaintEvent *)
     QPainter p(this);
     p.fillRect(rect(), Qt::black);
     if (m_frame.isNull()) {
-        p.setPen(QColor(200, 200, 200));
-        QFont f = font();
-        f.setPointSizeF(f.pointSizeF() * 1.6);
+        p.setPen(QColor(0x9a, 0xa1, 0xaa));
+        QFont f(QStringLiteral("Barlow"));
+        f.setPixelSize(24);
+        f.setWeight(QFont::Medium);
         p.setFont(f);
-        p.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, m_placeholder);
+        if (m_placeholderDetail.isEmpty()) {
+            p.drawText(rect(), Qt::AlignCenter | Qt::TextWordWrap, m_placeholder);
+            return;
+        }
+        // Con detalle (errores): la palabra encima del centro y el motivo completo debajo.
+        const int middle = height() / 2;
+        p.drawText(QRect(0, 0, width(), middle), Qt::AlignHCenter | Qt::AlignBottom, m_placeholder);
+        QFont detailFont(QStringLiteral("Barlow"));
+        detailFont.setPixelSize(16);
+        p.setFont(detailFont);
+        p.drawText(rect().adjusted(32, middle + 16, -32, -16), Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap,
+                   m_placeholderDetail);
         return;
     }
     const QSize scaled = m_frame.size().scaled(size(), Qt::KeepAspectRatio);

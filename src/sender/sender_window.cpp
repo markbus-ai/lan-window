@@ -4,12 +4,11 @@
 
 #include <QCheckBox>
 #include <QComboBox>
-#include <QFormLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSettings>
-#include <QSpinBox>
 #include <QVBoxLayout>
 
 namespace lanwindow {
@@ -17,12 +16,14 @@ namespace lanwindow {
 SenderWindow::SenderWindow(QWidget *parent) : QWidget(parent)
 {
     setWindowTitle(QStringLiteral("LAN Window – Emisor"));
+    setObjectName(QStringLiteral("senderRoot"));
+    setAttribute(Qt::WA_StyledBackground);
 
     QSettings settings;
     m_host = new QLineEdit(settings.value("host").toString(), this);
     m_host->setPlaceholderText(QStringLiteral("IPv4 del PC con Windows, p. ej. 192.168.1.50"));
-    m_port = new QSpinBox(this);
-    m_port->setRange(1, 65535);
+    m_host->setObjectName(QStringLiteral("hostField"));
+    m_port = new PortField(this);
     m_port->setValue(settings.value("port", kDefaultPort).toInt());
     m_quality = new QComboBox(this);
     int count = 0;
@@ -32,20 +33,42 @@ SenderWindow::SenderWindow(QWidget *parent) : QWidget(parent)
     m_quality->setCurrentIndex(qBound(0, settings.value("quality", 0).toInt(), count - 1));
     m_testPattern = new QCheckBox(QStringLiteral("Enviar patrón de prueba (sin capturar la pantalla)"), this);
     m_startStop = new QPushButton(this);
+    m_startStop->setObjectName(QStringLiteral("primary"));
+    m_slab = new QLabel(this);
+    m_slab->setObjectName(QStringLiteral("stateSlab"));
     m_status = new QLabel(this);
     m_status->setWordWrap(true);
     m_status->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_status->setMinimumWidth(420);
+    m_status->setMinimumHeight(40); // dos líneas: el formulario no salta entre estados
+    m_status->setAlignment(Qt::AlignLeft | Qt::AlignTop);
 
-    auto *form = new QFormLayout;
-    form->addRow(QStringLiteral("Destino (IPv4):"), m_host);
-    form->addRow(QStringLiteral("Puerto UDP:"), m_port);
-    form->addRow(QStringLiteral("Calidad:"), m_quality);
-    form->addRow(QString(), m_testPattern);
+    const auto fieldLabel = [this](const QString &text) {
+        auto *label = new QLabel(text, this);
+        label->setObjectName(QStringLiteral("fieldLabel"));
+        return label;
+    };
+    auto *form = new QGridLayout;
+    form->setHorizontalSpacing(14);
+    form->setVerticalSpacing(10);
+    form->setColumnStretch(1, 1);
+    form->addWidget(fieldLabel(QStringLiteral("Destino (IPv4)")), 0, 0, Qt::AlignVCenter);
+    form->addWidget(m_host, 0, 1);
+    form->addWidget(fieldLabel(QStringLiteral("Puerto UDP")), 1, 0, Qt::AlignVCenter);
+    form->addWidget(m_port, 1, 1);
+    form->addWidget(fieldLabel(QStringLiteral("Calidad")), 2, 0, Qt::AlignVCenter);
+    form->addWidget(m_quality, 2, 1);
+    form->addWidget(m_testPattern, 3, 1);
     auto *layout = new QVBoxLayout(this);
-    layout->addLayout(form);
-    layout->addWidget(m_startStop);
+    layout->setContentsMargins(16, 16, 16, 16);
+    layout->setSpacing(0);
+    layout->addWidget(m_slab);
+    layout->addSpacing(8);
     layout->addWidget(m_status);
+    layout->addSpacing(12);
+    layout->addLayout(form);
+    layout->addSpacing(20);
+    layout->addWidget(m_startStop);
 
     connect(m_startStop, &QPushButton::clicked, this, [this] {
         if (m_pipeline.isRunning() || m_waitingPortal)
@@ -53,15 +76,22 @@ SenderWindow::SenderWindow(QWidget *parent) : QWidget(parent)
         else
             startSending();
     });
+    const auto startOnReturn = [this] {
+        if (!m_pipeline.isRunning() && !m_waitingPortal)
+            startSending();
+    };
+    connect(m_host, &QLineEdit::returnPressed, this, startOnReturn);
+    connect(m_port, &QLineEdit::returnPressed, this, startOnReturn);
+    connect(m_host, &QLineEdit::textEdited, this, [this] { setFieldInvalid(m_host, false); });
 
     connect(&m_pipeline, &SenderPipeline::failed, this, [this](const QString &msg) {
         m_portal.stop();
-        setStatus(QStringLiteral("Error: %1").arg(msg), true);
+        setStatus(QStringLiteral("Error: %1").arg(msg), SlabTone::Error, QStringLiteral("Error"));
         updateButtons();
     });
     connect(&m_pipeline, &SenderPipeline::finished, this, [this] {
         m_portal.stop();
-        setStatus(QStringLiteral("La captura terminó (flujo de PipeWire cerrado)."), true);
+        setStatus(QStringLiteral("La captura terminó (flujo de PipeWire cerrado)."), SlabTone::Error, QStringLiteral("Cortado"));
         updateButtons();
     });
     connect(&m_pipeline, &SenderPipeline::warning, this,
@@ -73,7 +103,7 @@ SenderWindow::SenderWindow(QWidget *parent) : QWidget(parent)
         QString error;
         if (!collectConfig(&cfg, &error)) {
             m_portal.stop();
-            setStatus(QStringLiteral("Error: %1").arg(error), true);
+            setStatus(QStringLiteral("Error: %1").arg(error), SlabTone::Error, QStringLiteral("Error"));
             updateButtons();
             return;
         }
@@ -85,19 +115,19 @@ SenderWindow::SenderWindow(QWidget *parent) : QWidget(parent)
     });
     connect(&m_portal, &PortalCapture::cancelled, this, [this] {
         m_waitingPortal = false;
-        setStatus(QStringLiteral("Selección de pantalla cancelada."));
+        setStatus(QStringLiteral("Selección de pantalla cancelada."), SlabTone::Idle, QStringLiteral("Cancelado"));
         updateButtons();
     });
     connect(&m_portal, &PortalCapture::failed, this, [this](const QString &msg) {
         m_waitingPortal = false;
         m_pipeline.stop();
-        setStatus(QStringLiteral("Error: %1").arg(msg), true);
+        setStatus(QStringLiteral("Error: %1").arg(msg), SlabTone::Error, QStringLiteral("Error"));
         updateButtons();
     });
     connect(&m_portal, &PortalCapture::closed, this, [this] {
         m_waitingPortal = false;
         m_pipeline.stop();
-        setStatus(QStringLiteral("La sesión de captura se cerró desde el sistema."), true);
+        setStatus(QStringLiteral("La sesión de captura se cerró desde el sistema."), SlabTone::Error, QStringLiteral("Cortado"));
         updateButtons();
     });
 
@@ -123,9 +153,9 @@ SenderWindow::SenderWindow(QWidget *parent) : QWidget(parent)
         m_testPattern->setChecked(true);
     }
     if (problems.isEmpty())
-        setStatus(QStringLiteral("Listo (codificador: %1).").arg(encoder));
+        setStatus(QStringLiteral("Listo (codificador: %1).").arg(encoder), SlabTone::Idle, QStringLiteral("Listo"));
     else
-        setStatus(problems.join(QLatin1Char('\n')), true);
+        setStatus(problems.join(QLatin1Char('\n')), SlabTone::Error, QStringLiteral("Problema"));
     updateButtons();
 }
 
@@ -178,9 +208,12 @@ bool SenderWindow::startSending()
     SenderConfig cfg;
     QString error;
     if (!collectConfig(&cfg, &error)) {
-        setStatus(QStringLiteral("Error: %1").arg(error), true);
+        setStatus(QStringLiteral("Error: %1").arg(error), SlabTone::Error, QStringLiteral("Error"));
+        setFieldInvalid(m_host, !isValidIPv4(cfg.host));
+        m_host->setFocus();
         return false;
     }
+    setFieldInvalid(m_host, false);
     QSettings settings;
     settings.setValue("host", cfg.host);
     settings.setValue("port", cfg.port);
@@ -190,7 +223,7 @@ bool SenderWindow::startSending()
         return startPipeline(cfg);
 
     m_waitingPortal = true;
-    setStatus(QStringLiteral("Elige la pantalla en el diálogo del sistema…"));
+    setStatus(QStringLiteral("Elige la pantalla en el diálogo del sistema…"), SlabTone::Waiting, QStringLiteral("Esperando"));
     updateButtons();
     m_portal.start();
     return true;
@@ -200,7 +233,7 @@ bool SenderWindow::startPipeline(SenderConfig cfg)
 {
     QString error;
     if (!m_pipeline.start(cfg, &error)) {
-        setStatus(QStringLiteral("Error: %1").arg(error), true);
+        setStatus(QStringLiteral("Error: %1").arg(error), SlabTone::Error, QStringLiteral("Error"));
         updateButtons();
         return false;
     }
@@ -212,7 +245,8 @@ bool SenderWindow::startPipeline(SenderConfig cfg)
                   .arg(cfg.width)
                   .arg(cfg.height)
                   .arg(cfg.fps)
-                  .arg(m_pipeline.encoderName()));
+                  .arg(m_pipeline.encoderName()),
+              SlabTone::Live, QStringLiteral("Enviando"));
     updateButtons();
     return true;
 }
@@ -222,14 +256,13 @@ void SenderWindow::stopSending()
     m_waitingPortal = false;
     m_pipeline.stop();
     m_portal.stop();
-    setStatus(QStringLiteral("Detenido."));
+    setStatus(QStringLiteral("Detenido."), SlabTone::Idle, QStringLiteral("Detenido"));
     updateButtons();
 }
 
-void SenderWindow::setStatus(const QString &text, bool error)
+void SenderWindow::setStatus(const QString &text, SlabTone tone, const QString &word)
 {
-    m_status->setText(text);
-    m_status->setStyleSheet(error ? QStringLiteral("color: #d33;") : QString());
+    setStateSlab(m_slab, m_status, word, text, tone);
 }
 
 void SenderWindow::updateButtons()

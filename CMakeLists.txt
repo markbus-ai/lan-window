@@ -4,6 +4,7 @@ project(lan-window VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
   message(FATAL_ERROR "Compila fuera del árbol de fuentes, p. ej. cmake -S . -B ../build")
@@ -23,6 +24,9 @@ pkg_check_modules(GST REQUIRED IMPORTED_TARGET gstreamer-1.0 gstreamer-app-1.0 g
 
 # Núcleo común: configuración, pipelines GStreamer y widgets del receptor.
 add_library(lanwindow_core STATIC
+  assets/lanwindow.qrc
+  src/common/theme.cpp
+  src/common/theme.h
   src/common/config.cpp
   src/common/config.h
   src/common/gst_util.cpp
@@ -78,6 +82,8 @@ if(LANWINDOW_BUILD_TESTS)
     add_test(NAME sender_self_check COMMAND lan-window-sender --self-check)
     set_tests_properties(sender_self_check PROPERTIES TIMEOUT 60
       ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    add_executable(ui_render_states tests/render_states.cpp)
+    target_link_libraries(ui_render_states PRIVATE lanwindow_sender_ui Qt6::Test)
     add_executable(ui_smoke_test tests/ui_smoke_test.cpp)
     target_link_libraries(ui_smoke_test PRIVATE lanwindow_sender_ui Qt6::Test)
     add_test(NAME ui_smoke_test COMMAND ui_smoke_test)

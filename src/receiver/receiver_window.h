@@ -1,13 +1,15 @@
 #pragma once
 
+#include "common/elided_label.h"
+#include "common/port_field.h"
 #include "common/receiver_pipeline.h"
+#include "common/theme.h"
 
 #include <QWidget>
 
 class QLabel;
 class QLineEdit;
 class QPushButton;
-class QSpinBox;
 
 namespace lanwindow {
 
@@ -30,15 +32,16 @@ public:
     QString statusText() const;
 
 private:
-    void setStatus(const QString &text, bool error = false);
+    void setStatus(const QString &text, SlabTone tone, const QString &word);
     void updateButtons();
     void onSignalChanged(bool hasSignal);
 
     ReceiverPipeline m_pipeline;
     QWidget *m_controls = nullptr;
     QLineEdit *m_address = nullptr;
-    QSpinBox *m_port = nullptr;
+    PortField *m_port = nullptr;
     QPushButton *m_startStop = nullptr;
+    QLabel *m_slab = nullptr;
     QLabel *m_status = nullptr;
     VideoWidget *m_video = nullptr;
     QString m_listenText;

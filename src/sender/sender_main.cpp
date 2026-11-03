@@ -1,4 +1,5 @@
 #include "common/gst_util.h"
+#include "common/theme.h"
 #include "sender/sender_window.h"
 
 #include <QApplication>
@@ -10,6 +11,7 @@ int main(int argc, char *argv[])
     QApplication::setOrganizationName(QStringLiteral("lan-window"));
     QApplication::setApplicationName(QStringLiteral("lan-window-sender"));
     lanwindow::ensureGstInit();
+    lanwindow::applyTheme(app);
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral("Emisor de pantalla (PipeWire/portal) en H.264/RTP por la LAN."));

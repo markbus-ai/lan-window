@@ -1,7 +1,9 @@
 #pragma once
 
 #include "common/config.h"
+#include "common/port_field.h"
 #include "common/sender_pipeline.h"
+#include "common/theme.h"
 #include "sender/portal_capture.h"
 
 #include <QWidget>
@@ -11,7 +13,6 @@ class QComboBox;
 class QLabel;
 class QLineEdit;
 class QPushButton;
-class QSpinBox;
 
 namespace lanwindow {
 
@@ -33,16 +34,17 @@ public:
 private:
     bool collectConfig(SenderConfig *cfg, QString *error) const;
     bool startPipeline(SenderConfig cfg);
-    void setStatus(const QString &text, bool error = false);
+    void setStatus(const QString &text, SlabTone tone, const QString &word);
     void updateButtons();
 
     SenderPipeline m_pipeline;
     PortalCapture m_portal;
     QLineEdit *m_host = nullptr;
-    QSpinBox *m_port = nullptr;
+    PortField *m_port = nullptr;
     QComboBox *m_quality = nullptr;
     QCheckBox *m_testPattern = nullptr;
     QPushButton *m_startStop = nullptr;
+    QLabel *m_slab = nullptr;
     QLabel *m_status = nullptr;
     bool m_waitingPortal = false;
     bool m_canSend = true;

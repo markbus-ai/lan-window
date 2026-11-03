@@ -17,8 +17,10 @@ La integración con Discord consiste en elegir la ventana del receptor al compar
 | Transmisión RTP/UDP real por loopback con patrón de prueba (`loopback_test`) | Probada |
 | Ventanas de emisor y receptor en modo offscreen (`ui_smoke_test`) | Probada |
 | Captura real con el portal de Wayland en Hyprland, por loopback hacia un receptor `gst-launch` | Probada a 720p (unos 28 fps decodificados); no se inspeccionó el contenido de la imagen |
-| Paquetes de GitHub Actions (receptor de Windows y AppImage del emisor) | **Sin verificar** |
-| Compilación y ejecución en Windows | **Sin verificar** |
+| Compilación y tests en Windows, y paquete del receptor (`--self-check` fuera de MSYS2) | Probados en GitHub Actions |
+| AppImage del emisor (`--self-check` en Ubuntu y Arch Linux) | Probado |
+| Captura de pantalla real desde el AppImage | **Sin verificar** |
+| Recepción de vídeo en una ventana real de Windows | **Sin verificar** |
 | Compartir la ventana en Discord | **Sin verificar** |
 
 ## Paquetes listos para usar

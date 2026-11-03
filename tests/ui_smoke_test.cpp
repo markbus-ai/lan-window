@@ -6,6 +6,7 @@
 #include "sender/sender_window.h"
 
 #include <QApplication>
+#include <QLineEdit>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTest>
@@ -42,8 +43,25 @@ class UiSmokeTest : public QObject {
     Q_OBJECT
 private slots:
     void senderRejectsInvalidHost();
+    void returnKeyStartsSending();
+    void portFieldShowsValueAndFallsBack();
     void endToEndWindows();
 };
+
+void UiSmokeTest::portFieldShowsValueAndFallsBack()
+{
+    PortField field;
+    field.resize(120, 40);
+    field.setValue(5917);
+    QCOMPARE(field.text(), QStringLiteral("5917"));
+    QCOMPARE(field.value(), 5917);
+    field.clear();
+    QCOMPARE(field.value(), kDefaultPort);
+    field.setText(QStringLiteral("0"));
+    QCOMPARE(field.value(), kDefaultPort);
+    field.setValue(70000);
+    QCOMPARE(field.value(), kDefaultPort);
+}
 
 void UiSmokeTest::senderRejectsInvalidHost()
 {
@@ -52,6 +70,23 @@ void UiSmokeTest::senderRejectsInvalidHost()
     sender.setDestination(QStringLiteral("999.1.1.1"), 5004);
     QVERIFY(!sender.startSending());
     QVERIFY(!sender.pipeline()->isRunning());
+    QVERIFY(sender.statusText().startsWith(QStringLiteral("Error")));
+    auto *host = sender.findChild<QLineEdit *>(QStringLiteral("hostField"));
+    QVERIFY(host);
+    QVERIFY(host->property("invalid").toBool());
+    QCOMPARE(sender.focusWidget(), host);
+    QTest::keyClick(host, Qt::Key_1);
+    QVERIFY(!host->property("invalid").toBool());
+}
+
+void UiSmokeTest::returnKeyStartsSending()
+{
+    SenderWindow sender;
+    sender.setTestPattern(true);
+    sender.setDestination(QStringLiteral("999.1.1.1"), 5004);
+    auto *host = sender.findChild<QLineEdit *>(QStringLiteral("hostField"));
+    QVERIFY(host);
+    QTest::keyClick(host, Qt::Key_Return);
     QVERIFY(sender.statusText().startsWith(QStringLiteral("Error")));
 }
 
@@ -70,6 +105,7 @@ void UiSmokeTest::endToEndWindows()
         receiver.setListen(QStringLiteral("127.0.0.1"), port);
         QVERIFY(receiver.startReceiving());
         QVERIFY(receiver.statusText().contains(QStringLiteral("esperando")));
+        QVERIFY(!receiver.videoWidget()->placeholder().contains(QLatin1Char('.'))); // sin dirección IP en el vídeo
 
         sender.setTestPattern(true); // nunca abrir el selector real del portal en tests
         sender.setDestination(QStringLiteral("127.0.0.1"), port);

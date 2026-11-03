@@ -13,7 +13,8 @@ public:
     explicit VideoWidget(QWidget *parent = nullptr);
 
     void setFrame(const QImage &frame);
-    void setPlaceholder(const QString &text); // borra la imagen y muestra un texto
+    void setPlaceholder(const QString &text, const QString &detail = QString());
+    QString placeholder() const { return m_placeholder; } // borra la imagen y muestra un texto
     QImage frame() const { return m_frame; }
 
 protected:
@@ -22,6 +23,7 @@ protected:
 private:
     QImage m_frame;
     QString m_placeholder;
+    QString m_placeholderDetail;
 };
 
 } // namespace lanwindow
